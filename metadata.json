@@ -1,0 +1,6 @@
+{
+  "name": "BrandPilot Studio",
+  "description": "Brand-consistent AI marketing content studio generating ready-to-post branded images, bilingual captions, and WhatsApp broadcasts from minimal briefs for small businesses.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
