@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from '@google/genai';
-import { BrandDNA, ContentRequest, GeneratedCaption, PlatformType } from '../types';
+import { BrandDNA, ContentRequest, GeneratedCaption, PlatformType } from '../types.ts';
 
 // Models defined according to @google/genai specification
 const TEXT_MODELS = [
@@ -394,4 +394,62 @@ export async function generateVideo(
   } catch {
     return { status: 'skipped' };
   }
+}
+
+/**
+ * Generate 5 intelligent, contextual hashtags dynamically
+ */
+export async function generateHashtags(
+  brandDna: BrandDNA,
+  tag: string,
+  subject: string,
+  style: string = 'trending'
+): Promise<string[]> {
+  const ai = getGenAI();
+  const prompt = `Generate exactly 5 high-converting, contextual social media hashtags for:
+Business Name: ${brandDna.business_name}
+Category: ${brandDna.category}
+Content Tag: ${tag}
+Subject: ${subject || 'Ritual puja essentials'}
+Style Preference: ${style} (trending / festive / local Telugu / product)
+Strictly avoid forbidden words: ${brandDna.forbidden_words.join(', ')}
+
+Return a JSON array of 5 hashtags, each starting with #. Example: ["#PujaSamagri", "#SriVenkateswaraStores", "#Deeparadhana", "#Traditions", "#Devotion"]`;
+
+  for (const model of TEXT_MODELS) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          temperature: 0.7,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'Array of exactly 5 hashtags starting with #',
+          },
+        },
+      });
+
+      if (response.text) {
+        const parsed = JSON.parse(response.text);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((t: string) => (t.startsWith('#') ? t : `#${t}`)).slice(0, 5);
+        }
+      }
+    } catch (err: any) {
+      console.warn(`Hashtag generation on model ${model} failed, trying next:`, err.message || err);
+    }
+  }
+
+  // Fallback if AI call doesn't succeed
+  const brandTag = `#${brandDna.business_name.replace(/[^a-zA-Z0-9]/g, '')}`;
+  return [
+    brandTag,
+    '#PujaSamagri',
+    '#TeluguTraditions',
+    '#RitualGuidance',
+    '#PandagaSpecial',
+  ];
 }

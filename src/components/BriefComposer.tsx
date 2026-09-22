@@ -14,6 +14,7 @@ import {
 import { BrandDNA, ContentRequest, ContentTag, PlatformType, AVAILABLE_TAGS } from '../types';
 import { processUserImageFile } from '../utils/imageUtils';
 import { CameraCaptureModal } from './CameraCaptureModal';
+import { generateAutomaticHashtags } from '../utils/hashtagEngine';
 
 interface BriefComposerProps {
   brandDna: BrandDNA;
@@ -47,6 +48,13 @@ export const BriefComposer: React.FC<BriefComposerProps> = ({
 
   const primaryColor = brandDna.color_palette[0] || '#8B1A1A';
   const secondaryColor = brandDna.color_palette[1] || '#E8B84B';
+
+  const liveHashtags = generateAutomaticHashtags({
+    subject: request.subject,
+    tag: request.tag,
+    brandName: brandDna.business_name,
+    category: brandDna.category,
+  });
 
   const handleTagClick = (tag: ContentTag) => {
     onChangeRequest({ ...request, tag });
@@ -199,6 +207,27 @@ export const BriefComposer: React.FC<BriefComposerProps> = ({
                 + {sample}
               </button>
             ))}
+          </div>
+
+          {/* Live Automatic Hashtags Preview */}
+          <div className="mt-3 p-3 rounded-xl bg-amber-50/60 border border-amber-200/80">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                <Sparkles className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span>Auto-Updated Hashtags:</span>
+              </div>
+              <span className="text-[10px] text-amber-800/80 font-medium">Changes automatically with your topic</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {liveHashtags.map((h, i) => (
+                <span
+                  key={i}
+                  className="text-xs font-mono px-2 py-0.5 rounded-md bg-white text-amber-900 border border-amber-300 shadow-2xs transition-all animate-in fade-in duration-150"
+                >
+                  {h}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 

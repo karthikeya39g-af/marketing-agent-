@@ -65,6 +65,72 @@ export const INITIAL_BRAND_DNA: BrandDNA = {
   ]
 };
 
+export type SocialPlatform = 'instagram' | 'whatsapp' | 'facebook' | 'twitter' | 'x';
+
+export interface ScheduledPost {
+  id: string;
+  date: string; // YYYY-MM-DD
+  time: string; // e.g. "09:30 AM" or "18:00"
+  asset: GeneratedAsset;
+  status: 'scheduled' | 'published' | 'draft';
+  target_platforms: SocialPlatform[];
+  published_at?: string;
+  notes?: string;
+}
+
+export interface FestivalDay {
+  date: string; // YYYY-MM-DD
+  name: string;
+  tag: ContentTag;
+  suggested_subject: string;
+  suggested_hashtags: string[];
+}
+
+export const UPCOMING_FESTIVALS: FestivalDay[] = [
+  {
+    date: '2026-09-25',
+    name: 'Shukravara Mahalakshmi Puja',
+    tag: 'Festival',
+    suggested_subject: 'Lakshmi puja samagri & kumkum',
+    suggested_hashtags: ['#LakshmiPuja', '#Shukravaram', '#PujaSamagri', '#SriVenkateswaraStores', '#Deeparadhana']
+  },
+  {
+    date: '2026-10-02',
+    name: 'Ekadashi Vratham',
+    tag: 'Tip',
+    suggested_subject: 'Tulasi puja & ghee deepam',
+    suggested_hashtags: ['#Ekadashi', '#TulasiPuja', '#GheeDeepam', '#TeluguTraditions', '#Bhakti']
+  },
+  {
+    date: '2026-10-10',
+    name: 'Sarannavaratri Arambham',
+    tag: 'Festival',
+    suggested_subject: 'Navratri Kalash stapana & akhanda deepam',
+    suggested_hashtags: ['#NavratriPuja', '#DurgaMaa', '#KalashSthapana', '#AkhandaDeepam', '#FestivalVibes']
+  },
+  {
+    date: '2026-10-18',
+    name: 'Vijayadasami / Dussehra',
+    tag: 'Festival',
+    suggested_subject: 'Ayudha puja items & Shami puja',
+    suggested_hashtags: ['#Vijayadasami', '#DussehraSpecial', '#AyudhaPuja', '#Subhakankshalu', '#Tradition']
+  },
+  {
+    date: '2026-11-08',
+    name: 'Deepavali / Diwali',
+    tag: 'Festival',
+    suggested_subject: 'Traditional clay & brass diyas, pure cow ghee',
+    suggested_hashtags: ['#Diwali2026', '#DeepavaliPandaga', '#BrassDiyas', '#HappyDiwali', '#Shubhadinam']
+  },
+  {
+    date: '2026-11-23',
+    name: 'Karthika Pournami',
+    tag: 'Festival',
+    suggested_subject: '365 vatulu, amla deepam & karthika deepalu',
+    suggested_hashtags: ['#KarthikaPournami', '#365Vathulu', '#AmlaDeepam', '#ShivaPuja', '#KarthikaMasam']
+  }
+];
+
 export const AVAILABLE_TAGS: ContentTag[] = [
   'New arrival',
   'Offer',

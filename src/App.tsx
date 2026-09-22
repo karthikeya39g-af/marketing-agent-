@@ -1,19 +1,91 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, Sparkles, CheckCircle2, Calendar, Upload } from 'lucide-react';
 import {
   BrandDNA,
   INITIAL_BRAND_DNA,
   ContentRequest,
   GeneratedAsset,
+  ScheduledPost,
+  SocialPlatform,
 } from './types';
 import { Header } from './components/Header';
 import { BrandSettingsDrawer } from './components/BrandSettingsDrawer';
 import { BriefComposer } from './components/BriefComposer';
 import { ResultPreview } from './components/ResultPreview';
 import { RecentGenerations } from './components/RecentGenerations';
+import { ContentCalendar } from './components/ContentCalendar';
+import { SocialUploadModal } from './components/SocialUploadModal';
 import { downloadCompositedImage } from './utils/canvasComposite';
 
+const INITIAL_SCHEDULED_POSTS: ScheduledPost[] = [
+  {
+    id: 'post_fest_01',
+    date: '2026-09-25',
+    time: '09:00 AM',
+    status: 'scheduled',
+    target_platforms: ['instagram', 'whatsapp', 'facebook'],
+    asset: {
+      id: 'asset_fest_01',
+      image_url:
+        'https://images.unsplash.com/photo-1605647540924-852290f6b0d5?auto=format&fit=crop&w=1200&q=85',
+      image_prompt:
+        'Commercial product photography of brass diyas. Category: puja_samagri_retail. Auspicious lighting.',
+      image_source: 'curated_brand_render',
+      caption:
+        'Shukravaram Mahalakshmi Devi puja kosam vishesamaina brass deepalu mariyu sugandha dhoop. Mee intlo lakshmi kataksham kalagali ani korukuntoo...',
+      hashtags: [
+        '#LakshmiPuja',
+        '#Shukravaram',
+        '#SriVenkateswaraStores',
+        '#PujaSamagri',
+        '#BrassDiyas',
+      ],
+      whatsapp_text:
+        'Namaskaram! Ee Shukravaram Mahalakshmi Puja samagri mee intiki theppinchukondi. Brass diyas, pure dhoop and camphor stock ready gaa undi. Visit Sri Venkateswara Puja Stores.',
+      cta_line: 'Visit our store near Temple Road or call us for samagri list',
+      tag: 'Festival',
+      subject: 'Lakshmi puja brass diyas',
+      platform: 'instagram_post',
+      video_status: 'skipped',
+      created_at: '2026-09-20T08:00:00.000Z',
+    },
+  },
+  {
+    id: 'post_fest_02',
+    date: '2026-10-10',
+    time: '08:30 AM',
+    status: 'scheduled',
+    target_platforms: ['instagram', 'facebook', 'x'],
+    asset: {
+      id: 'asset_fest_02',
+      image_url:
+        'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=1200&q=85',
+      image_prompt:
+        'Festive puja setup with brass kalash and red kumkum. Deep spiritual warmth.',
+      image_source: 'curated_brand_render',
+      caption:
+        'Devi Sarannavaratri utsavalu modalavthunnayi! Kalasha sthapana mariyu akhanda deeparadhana samagri anthaa okkote chota.',
+      hashtags: [
+        '#Navratri2026',
+        '#DurgaPuja',
+        '#SriVenkateswaraStores',
+        '#KalashSthapana',
+        '#FestivalVibes',
+      ],
+      whatsapp_text:
+        'Sarannavaratri subhakankshalu! Kalash sthapana, kumkum, akhanda deepam oil and pure dhoop available at Sri Venkateswara Puja Stores.',
+      cta_line: 'Pre-order your Navaratri puja kit today!',
+      tag: 'Festival',
+      subject: 'Navratri Kalash sthapana',
+      platform: 'instagram_post',
+      video_status: 'skipped',
+      created_at: '2026-09-21T10:00:00.000Z',
+    },
+  },
+];
+
 export default function App() {
+  const [activeTab, setActiveTab] = useState<'studio' | 'calendar'>('studio');
   const [brandDna, setBrandDna] = useState<BrandDNA>(() => {
     const saved = sessionStorage.getItem('brandpilot_dna');
     if (saved) {
@@ -73,6 +145,27 @@ export default function App() {
   const [isRegeneratingCaption, setIsRegeneratingCaption] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Scheduled Posts state persisted to local storage
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>(() => {
+    const saved = localStorage.getItem('brandpilot_scheduled_posts');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // fallback
+      }
+    }
+    return INITIAL_SCHEDULED_POSTS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('brandpilot_scheduled_posts', JSON.stringify(scheduledPosts));
+  }, [scheduledPosts]);
+
+  // Social upload modal control
+  const [socialUploadAsset, setSocialUploadAsset] = useState<GeneratedAsset | null>(null);
+  const [isSocialUploadOpen, setIsSocialUploadOpen] = useState(false);
 
   // Keep brand DNA in session storage
   useEffect(() => {
@@ -234,6 +327,47 @@ export default function App() {
     }
   };
 
+  const handleUpdateAssetHashtags = (newHashtags: string[]) => {
+    if (!currentAsset) return;
+    const updated = { ...currentAsset, hashtags: newHashtags };
+    setCurrentAsset(updated);
+    setHistory((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
+  };
+
+  const handleOpenSocialUploadModal = (asset: GeneratedAsset) => {
+    setSocialUploadAsset(asset);
+    setIsSocialUploadOpen(true);
+  };
+
+  const handleSchedulePost = (date: string, time: string, platforms: SocialPlatform[]) => {
+    if (!socialUploadAsset) return;
+    const newPost: ScheduledPost = {
+      id: `post_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      date,
+      time,
+      status: 'scheduled',
+      target_platforms: platforms,
+      asset: socialUploadAsset,
+    };
+    setScheduledPosts((prev) => [newPost, ...prev]);
+    setNotice(`Post successfully scheduled to Calendar for ${date} at ${time}!`);
+    setActiveTab('calendar');
+  };
+
+  const handleDeleteScheduledPost = (id: string) => {
+    setScheduledPosts((prev) => prev.filter((p) => p.id !== id));
+    setNotice('Post removed from calendar.');
+  };
+
+  const handleUpdateScheduledStatus = (
+    id: string,
+    status: 'draft' | 'scheduled' | 'published'
+  ) => {
+    setScheduledPosts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status } : p))
+    );
+  };
+
   return (
     <div className="min-h-screen bg-neutral-100/60 text-neutral-900 flex flex-col font-sans">
       {/* Header */}
@@ -272,40 +406,118 @@ export default function App() {
 
       {/* Main Single-Screen Content Area */}
       <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full space-y-6">
-        {/* Step 1: Brief Composer (Fast 10-second flow) */}
-        <BriefComposer
-          brandDna={brandDna}
-          request={request}
-          onChangeRequest={(updated) => setRequest(updated)}
-          onGenerate={handleGenerate}
-          isLoading={isGenerating}
-        />
+        {/* Navigation Tabs: Studio vs Calendar & Social Upload */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-neutral-200/90 shadow-xs">
+          <div className="flex items-center gap-2 flex-1">
+            <button
+              id="tab-studio-btn"
+              type="button"
+              onClick={() => setActiveTab('studio')}
+              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                activeTab === 'studio'
+                  ? 'bg-neutral-900 text-white shadow-xs'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Studio Generator</span>
+            </button>
+            <button
+              id="tab-calendar-btn"
+              type="button"
+              onClick={() => setActiveTab('calendar')}
+              className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                activeTab === 'calendar'
+                  ? 'bg-neutral-900 text-white shadow-xs'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'
+              }`}
+            >
+              <Calendar className="w-4 h-4 text-amber-500" />
+              <span>Content Calendar & Social Upload</span>
+              {scheduledPosts.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500 text-neutral-950 font-extrabold">
+                  {scheduledPosts.length}
+                </span>
+              )}
+            </button>
+          </div>
 
-        {/* Step 2: Result Preview (Image with crisp HTML/CSS brand banner + copyable blocks) */}
-        {currentAsset && (
-          <ResultPreview
-            asset={currentAsset}
-            brandDna={brandDna}
-            onRegenerateImage={handleRegenerateImage}
-            onRegenerateCaption={handleRegenerateCaption}
-            onDownloadImage={handleDownloadImage}
-            onUpdateImage={handleUpdateAssetImage}
-            isRegeneratingImage={isRegeneratingImage}
-            isRegeneratingCaption={isRegeneratingCaption}
-            isDownloading={isDownloading}
-          />
-        )}
+          {activeTab === 'studio' && currentAsset && (
+            <button
+              id="quick-social-upload-btn"
+              type="button"
+              onClick={() => handleOpenSocialUploadModal(currentAsset)}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-xs cursor-pointer"
+              style={{ backgroundColor: brandDna.color_palette[0] || '#8B1A1A' }}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Upload to Social Media</span>
+            </button>
+          )}
+        </div>
 
-        {/* Step 3: Recent Generations in this session */}
-        {history.length > 1 && currentAsset && (
-          <RecentGenerations
-            history={history}
-            activeId={currentAsset.id}
-            onSelectAsset={(selected) => setCurrentAsset(selected)}
+        {activeTab === 'studio' ? (
+          <>
+            {/* Step 1: Brief Composer (Fast 10-second flow) */}
+            <BriefComposer
+              brandDna={brandDna}
+              request={request}
+              onChangeRequest={(updated) => setRequest(updated)}
+              onGenerate={handleGenerate}
+              isLoading={isGenerating}
+            />
+
+            {/* Step 2: Result Preview (Image with crisp HTML/CSS brand banner + copyable blocks) */}
+            {currentAsset && (
+              <ResultPreview
+                asset={currentAsset}
+                brandDna={brandDna}
+                onRegenerateImage={handleRegenerateImage}
+                onRegenerateCaption={handleRegenerateCaption}
+                onDownloadImage={handleDownloadImage}
+                onUpdateImage={handleUpdateAssetImage}
+                onUpdateHashtags={handleUpdateAssetHashtags}
+                onOpenSocialUploadModal={handleOpenSocialUploadModal}
+                onScheduleToCalendar={() => handleOpenSocialUploadModal(currentAsset)}
+                isRegeneratingImage={isRegeneratingImage}
+                isRegeneratingCaption={isRegeneratingCaption}
+                isDownloading={isDownloading}
+              />
+            )}
+
+            {/* Step 3: Recent Generations in this session */}
+            {history.length > 1 && currentAsset && (
+              <RecentGenerations
+                history={history}
+                activeId={currentAsset.id}
+                onSelectAsset={(selected) => setCurrentAsset(selected)}
+                brandDna={brandDna}
+              />
+            )}
+          </>
+        ) : (
+          <ContentCalendar
             brandDna={brandDna}
+            scheduledPosts={scheduledPosts}
+            onAddScheduledPost={(post) => {
+              setScheduledPosts((prev) => [post, ...prev]);
+              setNotice('Post successfully added to Calendar!');
+            }}
+            onDeleteScheduledPost={handleDeleteScheduledPost}
+            onUpdatePostStatus={handleUpdateScheduledStatus}
+            onOpenSocialUploadModal={(asset) => handleOpenSocialUploadModal(asset)}
           />
         )}
       </main>
+
+      {/* Social Upload & Calendar Scheduling Modal */}
+      <SocialUploadModal
+        isOpen={isSocialUploadOpen}
+        onClose={() => setIsSocialUploadOpen(false)}
+        asset={socialUploadAsset}
+        brandDna={brandDna}
+        onSchedulePost={handleSchedulePost}
+      />
 
       {/* Simple Footer */}
       <footer className="border-t border-neutral-200/80 bg-white/70 py-4 mt-auto">

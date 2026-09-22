@@ -8,9 +8,12 @@ import {
   Share2,
   Tag,
   Sparkles,
+  Upload,
+  Calendar,
 } from 'lucide-react';
 import { BrandDNA, GeneratedAsset } from '../types';
 import { CompositedImagePreview } from './CompositedImagePreview';
+import { generateAutomaticHashtags, HashtagStyle, fetchAiHashtags } from '../utils/hashtagEngine';
 
 interface ResultPreviewProps {
   asset: GeneratedAsset;
@@ -19,6 +22,9 @@ interface ResultPreviewProps {
   onRegenerateCaption: () => void;
   onDownloadImage: () => void;
   onUpdateImage?: (newImageUrl: string) => void;
+  onUpdateHashtags?: (newHashtags: string[]) => void;
+  onOpenSocialUploadModal?: (asset: GeneratedAsset) => void;
+  onScheduleToCalendar?: () => void;
   isRegeneratingImage: boolean;
   isRegeneratingCaption: boolean;
   isDownloading: boolean;
@@ -31,17 +37,52 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({
   onRegenerateCaption,
   onDownloadImage,
   onUpdateImage,
+  onUpdateHashtags,
+  onOpenSocialUploadModal,
+  onScheduleToCalendar,
   isRegeneratingImage,
   isRegeneratingCaption,
   isDownloading,
 }) => {
   const [copiedCaption, setCopiedCaption] = useState(false);
   const [copiedWhatsapp, setCopiedWhatsapp] = useState(false);
+  const [isChangingHashtags, setIsChangingHashtags] = useState(false);
+  const [activeHashtagStyle, setActiveHashtagStyle] = useState<HashtagStyle>('trending');
 
   const primaryColor = brandDna.color_palette[0] || '#8B1A1A';
   const secondaryColor = brandDna.color_palette[1] || '#E8B84B';
 
   const fullInstagramText = `${asset.caption}\n\n${asset.hashtags.join(' ')}`;
+
+  // Automatically change hashtags based on selected flavor or AI auto-refresh
+  const handleAutoChangeHashtags = async (style: HashtagStyle) => {
+    setActiveHashtagStyle(style);
+    setIsChangingHashtags(true);
+    try {
+      // First instantaneous update from local smart engine
+      const instantTags = generateAutomaticHashtags({
+        subject: asset.subject,
+        tag: asset.tag,
+        brandName: brandDna.business_name,
+        category: brandDna.category,
+        style,
+      });
+
+      if (onUpdateHashtags) {
+        onUpdateHashtags(instantTags);
+      }
+
+      // Try AI refinement in background
+      const aiTags = await fetchAiHashtags(brandDna, asset.tag, asset.subject, style);
+      if (aiTags && aiTags.length > 0 && onUpdateHashtags) {
+        onUpdateHashtags(aiTags);
+      }
+    } catch (e) {
+      console.warn('Auto hashtag change failed:', e);
+    } finally {
+      setIsChangingHashtags(false);
+    }
+  };
 
   const handleCopyCaption = async () => {
     try {
@@ -70,16 +111,40 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({
 
   return (
     <section className="space-y-6 pt-2 animate-in fade-in duration-300">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: primaryColor }} />
           <h2 className="text-base font-bold text-neutral-900 font-heading">
             Generated Ready-to-Post Asset
           </h2>
         </div>
-        <span className="text-xs text-neutral-400 font-medium">
-          {new Date(asset.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
+        
+        <div className="flex items-center gap-2">
+          {onScheduleToCalendar && (
+            <button
+              id="schedule-to-calendar-btn"
+              type="button"
+              onClick={onScheduleToCalendar}
+              className="px-3 py-1.5 rounded-lg border border-neutral-300 hover:bg-neutral-100 text-neutral-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Calendar className="w-3.5 h-3.5 text-neutral-600" />
+              <span>Schedule</span>
+            </button>
+          )}
+
+          {onOpenSocialUploadModal && (
+            <button
+              id="upload-to-social-btn"
+              type="button"
+              onClick={() => onOpenSocialUploadModal(asset)}
+              className="px-3.5 py-1.5 rounded-lg text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Upload to Social Media</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -176,19 +241,100 @@ export const ResultPreview: React.FC<ResultPreviewProps> = ({
 
             {/* Hashtags Row */}
             <div className="mt-3">
-              <div className="flex items-center gap-1 text-[11px] font-semibold text-neutral-500 mb-1.5">
-                <Tag className="w-3 h-3 text-neutral-400" />
-                <span>5 Targeted Hashtags:</span>
+              <div className="flex items-center justify-between gap-1 text-[11px] font-semibold text-neutral-500 mb-1.5">
+                <div className="flex items-center gap-1">
+                  <Tag className="w-3 h-3 text-neutral-400" />
+                  <span>5 Targeted Hashtags:</span>
+                </div>
+                {isChangingHashtags && (
+                  <span className="text-[10px] text-amber-700 font-medium flex items-center gap-1 animate-pulse">
+                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                    <span>Auto-updating...</span>
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {asset.hashtags.map((tag, i) => (
                   <span
                     key={i}
-                    className="inline-block text-xs font-mono px-2 py-0.5 rounded-md bg-amber-50/80 text-amber-900 border border-amber-200/70"
+                    className="inline-block text-xs font-mono px-2 py-0.5 rounded-md bg-amber-50/80 text-amber-900 border border-amber-200/70 animate-in fade-in"
                   >
                     {tag}
                   </span>
                 ))}
+              </div>
+
+              {/* Auto-Change Hashtags Controller */}
+              <div className="mt-2.5 p-2 rounded-xl bg-neutral-100/70 border border-neutral-200/70">
+                <div className="flex items-center justify-between gap-1 mb-1.5 px-0.5">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-neutral-700">
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    <span>Auto-Change Hashtags:</span>
+                  </div>
+                  <span className="text-[9px] text-neutral-400">Click to switch instantly</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    disabled={isChangingHashtags}
+                    onClick={() => handleAutoChangeHashtags('trending')}
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all cursor-pointer border ${
+                      activeHashtagStyle === 'trending'
+                        ? 'bg-amber-200/80 border-amber-300 text-amber-950 font-bold'
+                        : 'bg-white hover:bg-neutral-100 text-neutral-600 border-neutral-200'
+                    }`}
+                  >
+                    🔥 Trending
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isChangingHashtags}
+                    onClick={() => handleAutoChangeHashtags('festive')}
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all cursor-pointer border ${
+                      activeHashtagStyle === 'festive'
+                        ? 'bg-amber-200/80 border-amber-300 text-amber-950 font-bold'
+                        : 'bg-white hover:bg-neutral-100 text-neutral-600 border-neutral-200'
+                    }`}
+                  >
+                    🕉️ Festive & Ritual
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isChangingHashtags}
+                    onClick={() => handleAutoChangeHashtags('local_telugu')}
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all cursor-pointer border ${
+                      activeHashtagStyle === 'local_telugu'
+                        ? 'bg-amber-200/80 border-amber-300 text-amber-950 font-bold'
+                        : 'bg-white hover:bg-neutral-100 text-neutral-600 border-neutral-200'
+                    }`}
+                  >
+                    🚩 Telugu Local
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isChangingHashtags}
+                    onClick={() => handleAutoChangeHashtags('product')}
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all cursor-pointer border ${
+                      activeHashtagStyle === 'product'
+                        ? 'bg-amber-200/80 border-amber-300 text-amber-950 font-bold'
+                        : 'bg-white hover:bg-neutral-100 text-neutral-600 border-neutral-200'
+                    }`}
+                  >
+                    🪔 Product
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isChangingHashtags}
+                    onClick={() => handleAutoChangeHashtags('reach')}
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all cursor-pointer border ${
+                      activeHashtagStyle === 'reach'
+                        ? 'bg-amber-200/80 border-amber-300 text-amber-950 font-bold'
+                        : 'bg-white hover:bg-neutral-100 text-neutral-600 border-neutral-200'
+                    }`}
+                  >
+                    🚀 Reach Boost
+                  </button>
+                </div>
               </div>
             </div>
 

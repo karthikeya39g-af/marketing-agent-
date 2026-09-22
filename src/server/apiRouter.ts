@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { generateCaption, generateImage, generateVideo } from './geminiService';
-import { BrandDNA, ContentRequest, GeneratedAsset } from '../types';
+import { generateCaption, generateImage, generateVideo, generateHashtags } from './geminiService.ts';
+import { BrandDNA, ContentRequest, GeneratedAsset } from '../types.ts';
 
 export const apiRouter = Router();
 
@@ -116,5 +116,27 @@ apiRouter.post('/generate-image', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error in /generate-image:', error);
     return res.status(500).json({ error: error.message || 'Failed to regenerate image' });
+  }
+});
+
+// Dynamic / automatic hashtags generator
+apiRouter.post('/generate-hashtags', async (req: Request, res: Response) => {
+  try {
+    const { brandDna, tag, subject, style } = req.body as {
+      brandDna: BrandDNA;
+      tag: string;
+      subject: string;
+      style?: string;
+    };
+
+    if (!brandDna) {
+      return res.status(400).json({ error: 'Missing brandDna' });
+    }
+
+    const hashtags = await generateHashtags(brandDna, tag || 'Festival', subject || '', style || 'trending');
+    return res.json({ hashtags });
+  } catch (error: any) {
+    console.error('Error in /generate-hashtags:', error);
+    return res.status(500).json({ error: error.message || 'Failed to generate hashtags' });
   }
 });
